@@ -1,0 +1,14 @@
+{
+  "commands.warevent.team.created": "Created team %s with color %s.",
+  "commands.warevent.team.deleted": "Deleted team %s.",
+  "commands.warevent.team.added": "Added %s to team %s.",
+  "commands.warevent.team.removed": "Removed %s from team %s.",
+  "commands.warevent.team.renamed": "Renamed team %s to %s.",
+  "commands.warevent.team.recolored": "Changed team %s to %s.",
+  "commands.warevent.team.exists": "A team named %s already exists.",
+  "commands.warevent.team.missing": "No team named %s exists.",
+  "commands.warevent.team.player_missing": "%s is not on team %s.",
+  "commands.warevent.team.player_already": "%s is already on team %s.",
+  "commands.warevent.team.invalid_color": "Unknown color. Choose one of the suggested colors.",
+  "commands.warevent.team.no_teams": "There are no teams yet."
+}
