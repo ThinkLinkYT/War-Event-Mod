@@ -10,5 +10,8 @@
   "commands.warevent.team.player_missing": "%s is not on team %s.",
   "commands.warevent.team.player_already": "%s is already on team %s.",
   "commands.warevent.team.invalid_color": "Unknown color. Choose one of the suggested colors.",
-  "commands.warevent.team.no_teams": "There are no teams yet."
+  "commands.warevent.team.no_teams": "There are no teams yet.",
+  "commands.warevent.rank.invalid": "Unknown rank. Choose commander, general, navigator, or soldier.",
+  "commands.warevent.rank.set": "Set %s's rank to %s.",
+  "commands.warevent.player.missing": "No online player named %s was found."
 }

@@ -23,6 +23,7 @@ import java.util.Locale;
 @EventBusSubscriber(modid = WarEventMod.MOD_ID)
 public final class TeamCommands {
     private static final String[] COLORS = {"black", "dark_blue", "dark_green", "dark_aqua", "dark_red", "dark_purple", "gold", "gray", "dark_gray", "blue", "green", "aqua", "red", "light_purple", "yellow", "white"};
+    private static final String[] RANKS = {"commander", "general", "navigator", "soldier"};
 
     @SubscribeEvent
     public static void register(RegisterCommandsEvent event) {
@@ -39,6 +40,9 @@ public final class TeamCommands {
         team.then(Commands.literal("recolor").then(Commands.argument("team", StringArgumentType.word()).suggests(teamSuggestions).then(
                 Commands.argument("color", StringArgumentType.word()).suggests((c, b) -> SharedSuggestionProvider.suggest(COLORS, b)).executes(TeamCommands::recolor))));
         event.getDispatcher().register(team);
+        event.getDispatcher().register(Commands.literal("rank").requires(source -> source.hasPermission(2))
+                .then(Commands.argument("player", StringArgumentType.word()).suggests((c, b) -> SharedSuggestionProvider.suggest(c.getSource().getServer().getPlayerList().getPlayers().stream().map(ServerPlayer::getGameProfile).map(p -> p.getName()), b))
+                .then(Commands.argument("rank", StringArgumentType.word()).suggests((c, b) -> SharedSuggestionProvider.suggest(RANKS, b)).executes(TeamCommands::rank))));
     }
 
     @SubscribeEvent
@@ -50,6 +54,17 @@ public final class TeamCommands {
                     apply(player.server, player, team);
                     break;
                 }
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void formatTabName(PlayerEvent.TabListNameFormat event) {
+        if (event.getEntity() instanceof ServerPlayer player) {
+            String rank = TeamData.get(player.server).getRank(player.getUUID());
+            ChatFormatting color = rankColor(rank);
+            if (color != null) {
+                event.setDisplayName(Component.literal(player.getGameProfile().getName()).withStyle(color, ChatFormatting.BOLD));
             }
         }
     }
@@ -98,10 +113,25 @@ public final class TeamCommands {
         if (team == null) return fail(c, "commands.warevent.team.missing", name); if (parsed == null) return fail(c, "commands.warevent.team.invalid_color"); team.color = color; data.setDirty(); refresh(c.getSource().getServer(), team); c.getSource().sendSuccess(() -> Component.translatable("commands.warevent.team.recolored", name, color), true); return 1;
     }
 
+    private static int rank(CommandContext<CommandSourceStack> c) {
+        String playerName = StringArgumentType.getString(c, "player");
+        String rank = StringArgumentType.getString(c, "rank").toLowerCase(Locale.ROOT);
+        if (!Arrays.asList(RANKS).contains(rank)) return fail(c, "commands.warevent.rank.invalid");
+        ServerPlayer player = c.getSource().getServer().getPlayerList().getPlayerByName(playerName);
+        if (player == null) return fail(c, "commands.warevent.player.missing", playerName);
+        TeamData data = TeamData.get(c.getSource().getServer());
+        data.setRank(player.getUUID(), rank);
+        applyCurrentTeam(c.getSource().getServer(), player, data);
+        c.getSource().sendSuccess(() -> Component.translatable("commands.warevent.rank.set", playerName, rank), true);
+        return 1;
+    }
+
     private static void refresh(MinecraftServer server, TeamData.WarTeam team) { for (var player : server.getPlayerList().getPlayers()) if (team.members.contains(player.getUUID())) apply(server, player, team); }
-    private static void apply(MinecraftServer server, ServerPlayer player, TeamData.WarTeam team) { clearVanillaTeam(server, player); PlayerTeam display = server.getScoreboard().getPlayerTeam("warevent_" + team.key()); if (display == null) display = server.getScoreboard().addPlayerTeam("warevent_" + team.key()); ChatFormatting color = parseColor(team.color); display.setColor(color); display.setPlayerPrefix(Component.literal("■ ").withStyle(color)); display.setNameTagVisibility(net.minecraft.world.scores.Team.Visibility.ALWAYS); server.getScoreboard().addPlayerToTeam(player.getScoreboardName(), display); }
+    private static void applyCurrentTeam(MinecraftServer server, ServerPlayer player, TeamData data) { for (TeamData.WarTeam team : data.all()) if (team.members.contains(player.getUUID())) { apply(server, player, team); return; } }
+    private static void apply(MinecraftServer server, ServerPlayer player, TeamData.WarTeam team) { clearVanillaTeam(server, player); PlayerTeam display = server.getScoreboard().getPlayerTeam("warevent_" + team.key()); if (display == null) display = server.getScoreboard().addPlayerTeam("warevent_" + team.key()); ChatFormatting teamColor = parseColor(team.color); ChatFormatting rankColor = rankColor(TeamData.get(server).getRank(player.getUUID())); display.setColor(rankColor != null ? rankColor : teamColor); display.setPlayerPrefix(Component.literal("■ ").withStyle(teamColor)); display.setNameTagVisibility(net.minecraft.world.scores.Team.Visibility.ALWAYS); if (rankColor != null) { player.setCustomName(Component.literal(player.getGameProfile().getName()).withStyle(rankColor, ChatFormatting.BOLD)); player.setCustomNameVisible(true); } server.getPlayerList().broadcastAll(new net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket(net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME, player)); server.getScoreboard().addPlayerToTeam(player.getScoreboardName(), display); }
     private static void clearVanillaTeam(MinecraftServer server, ServerPlayer player) { PlayerTeam old = server.getScoreboard().getPlayersTeam(player.getScoreboardName()); if (old != null) server.getScoreboard().removePlayerFromTeam(player.getScoreboardName(), old); }
     private static final SuggestionProvider<CommandSourceStack> teamSuggestions = (c, b) -> SharedSuggestionProvider.suggest(TeamData.get(c.getSource().getServer()).all().stream().map(t -> t.name), b);
     private static ChatFormatting parseColor(String value) { try { return ChatFormatting.valueOf(value.toUpperCase(Locale.ROOT)); } catch (IllegalArgumentException e) { return null; } }
+    private static ChatFormatting rankColor(String rank) { if (rank == null) return null; return switch (rank) { case "commander" -> ChatFormatting.GOLD; case "general" -> ChatFormatting.RED; case "navigator" -> ChatFormatting.BLUE; case "soldier" -> ChatFormatting.GREEN; default -> null; }; }
     private static int fail(CommandContext<CommandSourceStack> c, String key, Object... args) { c.getSource().sendFailure(Component.translatable(key, args)); return 0; }
 }

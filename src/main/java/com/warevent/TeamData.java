@@ -18,6 +18,7 @@ import java.util.UUID;
 public final class TeamData extends SavedData {
     public static final String ID = "warevent_teams";
     private final Map<String, WarTeam> teams = new LinkedHashMap<>();
+    private final Map<UUID, String> ranks = new LinkedHashMap<>();
 
     public static TeamData get(MinecraftServer server) {
         return server.overworld().getDataStorage().computeIfAbsent(
@@ -34,6 +35,8 @@ public final class TeamData extends SavedData {
             }
             data.teams.put(team.key(), team);
         }
+        CompoundTag rankTag = tag.getCompound("ranks");
+        for (String key : rankTag.getAllKeys()) data.ranks.put(UUID.fromString(key), rankTag.getString(key));
         return data;
     }
 
@@ -50,6 +53,9 @@ public final class TeamData extends SavedData {
             list.add(teamTag);
         }
         tag.put("teams", list);
+        CompoundTag rankTag = new CompoundTag();
+        ranks.forEach((uuid, rank) -> rankTag.putString(uuid.toString(), rank));
+        tag.put("ranks", rankTag);
         return tag;
     }
 
@@ -61,6 +67,8 @@ public final class TeamData extends SavedData {
         teams.values().forEach(team -> team.members.remove(uuid));
         setDirty();
     }
+    public String getRank(UUID uuid) { return ranks.get(uuid); }
+    public void setRank(UUID uuid, String rank) { ranks.put(uuid, rank); setDirty(); }
 
     public static final class WarTeam {
         public String name;
